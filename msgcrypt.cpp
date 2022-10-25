@@ -5,6 +5,7 @@
 #include <sodium.h>
 #include <stdlib.h>
 #include <cstring>
+#include <algorithm>
 
 using namespace std;
 
@@ -93,18 +94,10 @@ int main(int argc, char *argv[]) {
         sodium_bin2base64(b64, b64_len,
                             ciphertext, ciphertext_len,
                             sodium_base64_VARIANT_ORIGINAL);
-        bool notFound = true;
-        for(int i = b64_len - 1; i >= 0; i--){
-            if(b64[i] == '='){
-                notFound = false;
-                b64[i] = ' ';
-            } else {
-                if(!notFound){
-                    break;
-                }
-            }
-        }
-        printf("%s", b64);
+
+        string b64string = b64;
+        b64string.erase(remove(b64string.begin(), b64string.end(), '='), b64string.end());
+        printf("%s ", b64string.c_str());
 
     } else if (processingType == -1 ){
         size_t bin_maxlen = ((MESSAGE_LEN*10) / 4 * 3)/10;
