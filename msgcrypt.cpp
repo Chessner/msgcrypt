@@ -9,8 +9,6 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-   // #define MESSAGE (const unsigned char *) "test"
-   // #define MESSAGE_LEN 4
     #define ADDITIONAL_DATA (const unsigned char *) "123456"
     #define ADDITIONAL_DATA_LEN 6
 
@@ -69,14 +67,11 @@ int main(int argc, char *argv[]) {
     MESSAGE_LEN = getline(&message_buffer, &len, stdin) - 1;
     
     const unsigned char * MESSAGE = (const unsigned char*) message_buffer;
-    cout << "MESSAGE START:" << MESSAGE << ":MESSAGE END " << MESSAGE_LEN <<endl;
 
     int r = sodium_init();
     if (crypto_aead_aes256gcm_is_available() == 0) {
         abort(); 
     }
-
-    printf("key: %s\n", key);
 
     unsigned char nonce[crypto_aead_aes256gcm_NPUBBYTES];
    // randombytes_buf(nonce, sizeof nonce); 
@@ -85,7 +80,6 @@ int main(int argc, char *argv[]) {
     */
 
     if(processingType == 1){
-        printf("encoding...\n");
         unsigned char ciphertext[MESSAGE_LEN + crypto_aead_aes256gcm_ABYTES];
         unsigned long long ciphertext_len;
 
@@ -93,18 +87,26 @@ int main(int argc, char *argv[]) {
                                     MESSAGE, MESSAGE_LEN,
                                     ADDITIONAL_DATA, ADDITIONAL_DATA_LEN,
                                     NULL, nonce, key);
-     
-        printf("bin: %s\n", ciphertext);
 
         int b64_len = sodium_base64_ENCODED_LEN(ciphertext_len, sodium_base64_VARIANT_ORIGINAL); 
         char b64[b64_len];
         sodium_bin2base64(b64, b64_len,
                             ciphertext, ciphertext_len,
                             sodium_base64_VARIANT_ORIGINAL);
-      
-        printf("b64: %s\n", b64);
+        bool notFound = true;
+        for(int i = b64_len - 1; i >= 0; i--){
+            if(b64[i] == '='){
+                notFound = false;
+                b64[i] = ' ';
+            } else {
+                if(!notFound){
+                    break;
+                }
+            }
+        }
+        printf("%s", b64);
+
     } else if (processingType == -1 ){
-        printf("decoding...\n");
         size_t bin_maxlen = ((MESSAGE_LEN*10) / 4 * 3)/10;
         size_t* bin_len;
         unsigned char bin[bin_maxlen];
@@ -113,25 +115,19 @@ int main(int argc, char *argv[]) {
                     (const char*) MESSAGE, MESSAGE_LEN,
                     NULL, bin_len,
                     NULL, sodium_base64_VARIANT_ORIGINAL);
-        printf("b642bin res:%d\n",bres);
-        printf("bin: %s\n", bin);
+                    
         unsigned char decrypted[bin_maxlen - crypto_aead_aes256gcm_ABYTES];
         unsigned long long decrypted_len;
-        int res = 100;
         if (bin_maxlen < crypto_aead_aes256gcm_ABYTES ||
-            (res = crypto_aead_aes256gcm_decrypt(decrypted, &decrypted_len,
+            (crypto_aead_aes256gcm_decrypt(decrypted, &decrypted_len,
                                         NULL,
                                         bin, bin_maxlen, 
                                         ADDITIONAL_DATA,
                                         ADDITIONAL_DATA_LEN,
                                         nonce, key)) != 0) {
         }
-        printf("decrypt res: %d\n", res);
 
-        printf("decrypted: %s\n", decrypted);
+        printf("%s\n", decrypted);
     }
     return 0;
 }
-//gcc msgcrypt.cpp -lstdc++ -lsodium -o msgcrypt
-//CFLAGS=$(pkg-config --cflags libsodium)
-//LDFLAGS=$(pkg-config --libs libsodium)
