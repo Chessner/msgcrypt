@@ -9,6 +9,12 @@
 
 using namespace std;
 
+/*
+    Sometimes the program throws a Segmentation fault but i don't know why.
+    Other than that it works.
+    Libsodium has no AES-256 with CBC block mode. Only has AES-256GCM.
+*/
+
 int main(int argc, char *argv[]) {
     #define ADDITIONAL_DATA (const unsigned char *) "123456"
     #define ADDITIONAL_DATA_LEN 6
@@ -16,6 +22,7 @@ int main(int argc, char *argv[]) {
     string filename;
     int processingType = 0; // 0 = not set, 1 encode, -1 decode
 
+    // Read command line arguments.
     if(argc < 4){
         printf("Insufficient argument count. \n");
         return 1;
@@ -47,10 +54,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Open file with key and init key array.
     ifstream myfile (filename);
     unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
-    crypto_aead_aes256gcm_keygen(key);
 
+    // Read from file.
     if(myfile.is_open()){
         int i = 0;
         while(myfile.good() && i <= crypto_aead_aes256gcm_KEYBYTES){
@@ -74,13 +82,11 @@ int main(int argc, char *argv[]) {
         abort(); 
     }
 
-    unsigned char nonce[crypto_aead_aes256gcm_NPUBBYTES];
-   // randombytes_buf(nonce, sizeof nonce); 
-   /*   nonce is random, which means it is not the same for en- and decryptionl. Either save in key.txt,
-        pass as command line argument or ignore. I chose to ignore nonce in this implementation.
-    */
+    unsigned char nonce[crypto_aead_aes256gcm_NPUBBYTES]; // Left nonce empty.
+    
 
     if(processingType == 1){
+        // ENC
         unsigned char ciphertext[MESSAGE_LEN + crypto_aead_aes256gcm_ABYTES];
         unsigned long long ciphertext_len;
 
@@ -89,22 +95,26 @@ int main(int argc, char *argv[]) {
                                     ADDITIONAL_DATA, ADDITIONAL_DATA_LEN,
                                     NULL, nonce, key);
 
+        // Convert to base64.
         int b64_len = sodium_base64_ENCODED_LEN(ciphertext_len, sodium_base64_VARIANT_ORIGINAL); 
         char b64[b64_len];
         sodium_bin2base64(b64, b64_len,
                             ciphertext, ciphertext_len,
                             sodium_base64_VARIANT_ORIGINAL);
 
+        // Remove unnecessary chars from output.
         string b64string = b64;
         b64string.erase(remove(b64string.begin(), b64string.end(), '='), b64string.end());
         printf("%s ", b64string.c_str());
 
     } else if (processingType == -1 ){
+        // DEC
         size_t bin_maxlen = ((MESSAGE_LEN*10) / 4 * 3)/10;
         size_t* bin_len;
         unsigned char bin[bin_maxlen];
-        int bres = 100;
-        bres = sodium_base642bin(bin, bin_maxlen,
+        
+        // Convert to binary.
+        sodium_base642bin(bin, bin_maxlen,
                     (const char*) MESSAGE, MESSAGE_LEN,
                     NULL, bin_len,
                     NULL, sodium_base64_VARIANT_ORIGINAL);
